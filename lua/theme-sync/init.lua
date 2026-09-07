@@ -66,9 +66,10 @@ local function save_theme(id)
 end
 
 local function load_saved_theme()
+  local id
   local local_appdata = os.getenv("LOCALAPPDATA")
-  local id = "catppuccin"
 
+  -- First prefer the committed theme
   if local_appdata then
     local path = local_appdata .. "\\theme-sync\\theme"
 
@@ -80,6 +81,26 @@ local function load_saved_theme()
       end
     end
   end
+
+  -- If committed state is missing, match the current WezTerm theme
+  if not id then
+    local temp = os.getenv("TEMP")
+
+    if temp then
+      local path = temp .. "\\theme-sync-current"
+
+      if vim.fn.filereadable(path) == 1 then
+        local current = vim.fn.readfile(path)[1]
+
+        if current and themes[current] then
+          id = current
+        end
+      end
+    end
+  end
+
+  -- Final fallback
+  id = id or "catppuccin"
 
   vim.cmd.colorscheme(themes[id].nvim)
 end

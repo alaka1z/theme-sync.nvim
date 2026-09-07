@@ -14,23 +14,50 @@ local themes = {
 }
 
 local function load_saved_theme()
+  local id = "catppuccin"
   local local_appdata = os.getenv("LOCALAPPDATA")
 
-  if not local_appdata then
-    return themes.catppuccin
+  if local_appdata then
+    local path = local_appdata .. "\\theme-sync\\theme"
+    local file = io.open(path, "r")
+
+    if file then
+      local saved = file:read("*l")
+      file:close()
+
+      if saved and themes[saved] then
+        id = saved
+      end
+    end
   end
 
-  local path = local_appdata .. "\\theme-sync\\theme"
-  local file = io.open(path, "r")
+  return id, themes[id]
+end
+
+local function save_current_theme(id)
+  local temp = os.getenv("TEMP")
+
+  if not temp then
+    return
+  end
+
+  local path = temp .. "\\theme-sync-current"
+  local file = io.open(path, "w")
 
   if not file then
-    return themes.catppuccin
+    return
   end
 
-  local id = file:read("*l")
+  file:write(id)
   file:close()
+end
 
-  return themes[id] or themes.catppuccin
+local function get_theme_by_scheme(scheme_name)
+  for id, name in pairs(themes) do
+    if name == scheme_name then
+      return id
+    end
+  end
 end
 
 local function apply_dynamic_scheme(pane, scheme_name)
@@ -76,7 +103,10 @@ local function apply_dynamic_scheme(pane, scheme_name)
 end
 
 function M.apply_to_config(config)
-  config.color_scheme = load_saved_theme()
+  local id, scheme = load_saved_theme()
+
+  config.color_scheme = scheme
+  save_current_theme(id)
 
   wezterm.on("user-var-changed", function(window, pane, name, value)
     if name ~= "THEME_SYNC" then
@@ -84,6 +114,12 @@ function M.apply_to_config(config)
     end
 
     apply_dynamic_scheme(pane, value)
+
+    local current_id = get_theme_by_scheme(value)
+
+    if current_id then
+      save_current_theme(current_id)
+    end
   end)
 end
 
