@@ -29,6 +29,8 @@ local theme_order = {
   "rose_pine",
 }
 
+local picker_active = false
+
 local function get_theme_by_nvim(name)
   for id, theme in pairs(themes) do
     if theme.nvim == name then
@@ -63,6 +65,20 @@ local function save_theme(id)
 
   vim.fn.mkdir(dir, "p")
   vim.fn.writefile({ id }, path)
+end
+
+local function handle_colorscheme()
+  sync_theme()
+
+  if picker_active then
+    return
+  end
+
+  local id = get_theme_by_nvim(vim.g.colors_name)
+
+  if id then
+    save_theme(id)
+  end
 end
 
 local function load_saved_theme()
@@ -112,8 +128,30 @@ function M.pick()
     table.insert(colors, themes[id].nvim)
   end
 
+  picker_active = true
+
   require("fzf-lua").colorschemes({
     colors = colors,
+
+    winopts = {
+      on_create = function(e)
+        if not e.winid then
+          picker_active = false
+          return
+        end
+
+        vim.api.nvim_create_autocmd("WinClosed", {
+          pattern = tostring(e.winid),
+          once = true,
+
+          callback = function()
+            vim.schedule(function()
+              picker_active = false
+            end)
+          end,
+        })
+      end,
+    },
 
     actions = {
       ["enter"] = function(selected, opts)
@@ -136,7 +174,7 @@ function M.setup()
     group = vim.api.nvim_create_augroup("ThemeSync", {
       clear = true,
     }),
-    callback = sync_theme,
+    callback = handle_colorscheme,
   })
 end
 
