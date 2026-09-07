@@ -65,6 +65,25 @@ local function save_theme(id)
   vim.fn.writefile({ id }, path)
 end
 
+local function load_saved_theme()
+  local local_appdata = os.getenv("LOCALAPPDATA")
+  local id = "catppuccin"
+
+  if local_appdata then
+    local path = local_appdata .. "\\theme-sync\\theme"
+
+    if vim.fn.filereadable(path) == 1 then
+      local saved = vim.fn.readfile(path)[1]
+
+      if saved and themes[saved] then
+        id = saved
+      end
+    end
+  end
+
+  vim.cmd.colorscheme(themes[id].nvim)
+end
+
 function M.pick()
   local colors = {}
 
@@ -90,6 +109,8 @@ function M.pick()
 end
 
 function M.setup()
+  load_saved_theme()
+
   vim.api.nvim_create_autocmd("ColorScheme", {
     group = vim.api.nvim_create_augroup("ThemeSync", {
       clear = true,
