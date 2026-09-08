@@ -84,7 +84,7 @@ local function save_current_opacity(window)
     return
   end
 
-  file:write(tostring(opacity))
+  file:write(string.format("%.2f", opacity))
   file:close()
 end
 
