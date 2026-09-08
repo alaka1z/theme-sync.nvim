@@ -14,11 +14,7 @@ local function set_themes(theme_list)
       error("theme-sync: each theme requires id, nvim, and wezterm")
     end
 
-    themes[theme.id] = {
-      nvim = theme.nvim,
-      wezterm = theme.wezterm,
-    }
-
+    themes[theme.id] = theme
     table.insert(theme_order, theme.id)
   end
 
@@ -180,10 +176,6 @@ function M.setup(opts)
     }),
     callback = handle_colorscheme,
   })
-end
-
-function M.loaded()
-  return true
 end
 
 return M

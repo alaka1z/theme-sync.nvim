@@ -129,7 +129,7 @@ function M.apply_to_config(config, opts)
   config.color_scheme = scheme
   save_current_theme(id)
 
-  wezterm.on("user-var-changed", function(window, pane, name, value)
+  wezterm.on("user-var-changed", function(_, pane, name, value)
     if name ~= "THEME_SYNC" then
       return
     end
