@@ -1,35 +1,31 @@
 local M = {}
 
-local themes = {
-  catppuccin = {
-    nvim = "catppuccin-mocha",
-    wezterm = "Catppuccin Mocha",
-  },
-
-  tokyonight = {
-    nvim = "tokyonight-moon",
-    wezterm = "Tokyo Night Moon",
-  },
-
-  gruvbox = {
-    nvim = "gruvbox",
-    wezterm = "GruvboxDark",
-  },
-
-  rose_pine = {
-    nvim = "rose-pine",
-    wezterm = "rose-pine",
-  },
-}
-
-local theme_order = {
-  "catppuccin",
-  "tokyonight",
-  "gruvbox",
-  "rose_pine",
-}
+local themes = {}
+local theme_order = {}
 
 local picker_active = false
+
+local function set_themes(theme_list)
+  themes = {}
+  theme_order = {}
+
+  for _, theme in ipairs(theme_list or {}) do
+    if not theme.id or not theme.nvim or not theme.wezterm then
+      error("theme-sync: each theme requires id, nvim, and wezterm")
+    end
+
+    themes[theme.id] = {
+      nvim = theme.nvim,
+      wezterm = theme.wezterm,
+    }
+
+    table.insert(theme_order, theme.id)
+  end
+
+  if #theme_order == 0 then
+    error("theme-sync: no themes configured")
+  end
+end
 
 local function get_theme_by_nvim(name)
   for id, theme in pairs(themes) do
@@ -116,7 +112,7 @@ local function load_saved_theme()
   end
 
   -- Final fallback
-  id = id or "catppuccin"
+  id = id or theme_order[1]
 
   vim.cmd.colorscheme(themes[id].nvim)
 end
@@ -172,7 +168,10 @@ function M.pick()
   })
 end
 
-function M.setup()
+function M.setup(opts)
+  opts = opts or {}
+
+  set_themes(opts.themes)
   load_saved_theme()
 
   vim.api.nvim_create_autocmd("ColorScheme", {
