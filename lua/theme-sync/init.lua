@@ -17,9 +17,11 @@ local function set_themes(theme_list)
       or not theme.nvim
       or not theme.wezterm
       or type(theme.set_nvim_transparency) ~= "function"
+      or type(theme.get_nvim_colors) ~= "function"
     then
       error(
-        "theme-sync: each theme requires id, nvim, wezterm, and set_nvim_transparency"
+        "theme-sync: each theme requires id, nvim, wezterm, "
+          .. "set_nvim_transparency, and get_nvim_colors"
       )
     end
 
@@ -44,6 +46,33 @@ local function get_theme_by_nvim(name)
       return id, theme
     end
   end
+end
+
+local function get_current_colors()
+  local _, theme = get_theme_by_nvim(vim.g.colors_name)
+
+  if not theme then
+    return nil
+  end
+
+  return theme.get_nvim_colors()
+end
+
+local function set_theme_normal()
+  local colors = get_current_colors()
+
+  if
+    not colors
+    or not colors.foreground
+    or not colors.background
+  then
+    return
+  end
+
+  vim.api.nvim_set_hl(0, "ThemeNormal", {
+    fg = colors.foreground,
+    bg = colors.background,
+  })
 end
 
 local function sync_theme()
@@ -75,6 +104,7 @@ local function save_theme(id)
 end
 
 local function handle_colorscheme()
+  set_theme_normal()
   sync_theme()
 
   if picker_active then
@@ -204,20 +234,42 @@ local function watch_transparency()
 end
 
 function M.pick()
+  local fzf = require("fzf-lua")
+  local shell = require("fzf-lua.shell")
+  local utils = require("fzf-lua.utils")
+
   local colors = {}
 
   for _, id in ipairs(theme_order) do
     table.insert(colors, themes[id].nvim)
   end
 
+  local original_colorscheme = vim.g.colors_name
+  local original_background = vim.o.background
+
+  -- Keep the current theme at the top, matching fzf-lua's colorscheme picker
+  if original_colorscheme then
+    for i, color in ipairs(colors) do
+      if color == original_colorscheme then
+        table.remove(colors, i)
+        table.insert(colors, 1, color)
+        break
+      end
+    end
+  end
+
   picker_active = true
 
-  require("fzf-lua").colorschemes({
-    colors = colors,
+  local opts = {
+    prompt = "Colorschemes❯ ",
 
     fzf_colors = {
       ["bg"] = "-1",
       ["gutter"] = "-1",
+    },
+
+    fzf_opts = {
+      ["--preview-window"] = "nohidden:right:0",
     },
 
     winopts = {
@@ -239,19 +291,60 @@ function M.pick()
         })
       end,
     },
+  }
 
-    actions = {
-      ["enter"] = function(selected, opts)
-        require("fzf-lua.actions").colorscheme(selected, opts)
+  opts.preview = shell.stringify_data(function(selected)
+    local colorscheme = selected and selected[1]
 
-        local id = get_theme_by_nvim(vim.g.colors_name)
+    if colorscheme and vim.g.colors_name ~= colorscheme then
+      vim.cmd.colorscheme(colorscheme)
+    end
+  end, opts, "{}")
 
-        if id then
-          save_theme(id)
-        end
-      end,
-    },
-  })
+  local function restore_original()
+    if
+      original_colorscheme
+      and vim.g.colors_name ~= original_colorscheme
+    then
+      vim.cmd.colorscheme(original_colorscheme)
+    end
+
+    vim.o.background = original_background
+    utils.setup_highlights()
+  end
+
+  opts.actions = {
+    ["enter"] = function(selected)
+      local colorscheme = selected and selected[1]
+
+      if not colorscheme then
+        return
+      end
+
+      -- Normally already active from live preview
+      if vim.g.colors_name ~= colorscheme then
+        vim.cmd.colorscheme(colorscheme)
+      end
+
+      local id = get_theme_by_nvim(colorscheme)
+
+      if id then
+        save_theme(id)
+      end
+
+      utils.setup_highlights()
+    end,
+
+    ["esc"] = restore_original,
+    ["ctrl-c"] = restore_original,
+    ["ctrl-q"] = restore_original,
+  }
+
+  fzf.fzf_exec(colors, opts)
+end
+
+function M.get_colors()
+  return get_current_colors()
 end
 
 function M.setup(opts)
@@ -268,6 +361,7 @@ function M.setup(opts)
   current_transparency = transparency
   set_transparency(transparency)
   load_saved_theme()
+  set_theme_normal()
 
   vim.api.nvim_create_autocmd("ColorScheme", {
     group = vim.api.nvim_create_augroup("ThemeSync", {
