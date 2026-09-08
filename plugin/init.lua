@@ -69,6 +69,25 @@ local function save_current_theme(id)
   file:close()
 end
 
+local function save_current_opacity(window)
+  local temp = os.getenv("TEMP")
+
+  if not temp then
+    return
+  end
+
+  local opacity = window:effective_config().window_background_opacity
+  local path = temp .. "\\theme-sync-opacity"
+  local file = io.open(path, "w")
+
+  if not file then
+    return
+  end
+
+  file:write(tostring(opacity))
+  file:close()
+end
+
 local function get_theme_by_scheme(scheme_name)
   for id, name in pairs(themes) do
     if name == scheme_name then
@@ -141,6 +160,10 @@ function M.apply_to_config(config, opts)
     if current_id then
       save_current_theme(current_id)
     end
+  end)
+
+  wezterm.on("window-config-reloaded", function(window)
+    save_current_opacity(window)
   end)
 end
 
