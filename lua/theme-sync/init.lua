@@ -133,6 +133,11 @@ function M.pick()
   require("fzf-lua").colorschemes({
     colors = colors,
 
+    fzf_colors = {
+      ["bg"] = "-1",
+      ["gutter"] = "-1",
+    },
+
     winopts = {
       on_create = function(e)
         if not e.winid then
