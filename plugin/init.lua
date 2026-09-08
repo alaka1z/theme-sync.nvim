@@ -6,15 +6,32 @@ local wezterm = require("wezterm")
 
 local M = {}
 
-local themes = {
-  catppuccin = "Catppuccin Mocha",
-  tokyonight = "Tokyo Night Moon",
-  gruvbox = "GruvboxDark",
-  rose_pine = "rose-pine",
-}
+local themes = {}
+local default_theme_id
+
+local function set_themes(theme_list)
+  themes = {}
+  default_theme_id = nil
+
+  for _, theme in ipairs(theme_list or {}) do
+    if not theme.id or not theme.wezterm then
+      error("theme-sync: each theme requires id and wezterm")
+    end
+
+    if not default_theme_id then
+      default_theme_id = theme.id
+    end
+
+    themes[theme.id] = theme.wezterm
+  end
+
+  if not default_theme_id then
+    error("theme-sync: no themes configured")
+  end
+end
 
 local function load_saved_theme()
-  local id = "catppuccin"
+  local id = default_theme_id
   local local_appdata = os.getenv("LOCALAPPDATA")
 
   if local_appdata then
@@ -102,7 +119,11 @@ local function apply_dynamic_scheme(pane, scheme_name)
   pane:inject_output(table.concat(sequences))
 end
 
-function M.apply_to_config(config)
+function M.apply_to_config(config, opts)
+  opts = opts or {}
+
+  set_themes(opts.themes)
+
   local id, scheme = load_saved_theme()
 
   config.color_scheme = scheme
