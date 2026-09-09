@@ -58,6 +58,27 @@ local function get_current_colors()
   return theme.get_nvim_colors()
 end
 
+local function write_current_colors()
+  local colors = get_current_colors()
+
+  if not colors or not colors.background or not colors.foreground then
+    return
+  end
+
+  local temp = vim.env.TEMP or vim.env.TMP
+
+  if not temp then
+    return
+  end
+
+  local path = vim.fs.joinpath(temp, "theme-sync-colors")
+
+  vim.fn.writefile({
+    colors.background,
+    colors.foreground,
+  }, path)
+end
+
 local function set_theme_normal()
   local colors = get_current_colors()
 
@@ -105,6 +126,7 @@ end
 
 local function handle_colorscheme()
   set_theme_normal()
+  write_current_colors()
   sync_theme()
 
   if picker_active then
@@ -362,6 +384,7 @@ function M.setup(opts)
   set_transparency(transparency)
   load_saved_theme()
   set_theme_normal()
+  write_current_colors()
 
   vim.api.nvim_create_autocmd("ColorScheme", {
     group = vim.api.nvim_create_augroup("ThemeSync", {
